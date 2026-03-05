@@ -1,0 +1,29 @@
+# Binaries
+/bin/
+/dist/
+/build/
+/goforge
+
+# Go build/test artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.out
+
+# Go workspace/vendor (optional; keep vendor tracked only if intentional)
+vendor/
+
+# IDE/editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Env/local files
+.env
+.env.*
