@@ -5,10 +5,11 @@ import "os"
 type OperationType string
 
 const (
-	OpNote      OperationType = "note"
-	OpMkdir     OperationType = "mkdir"
-	OpWriteFile OperationType = "write_file"
-	OpRun       OperationType = "run"
+	OpNote           OperationType = "note"
+	OpEnsureEmptyDir OperationType = "ensure_empty_dir"
+	OpMkdir          OperationType = "mkdir"
+	OpWriteFile      OperationType = "write_file"
+	OpRun            OperationType = "run"
 )
 
 type Operation struct {

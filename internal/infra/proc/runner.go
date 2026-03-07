@@ -7,7 +7,7 @@ import (
 )
 
 type Runner interface {
-	Run(ctx context.Context, name string, args ...string) error
+	Run(ctx context.Context, workDir, name string, args ...string) error
 }
 
 type OSRunner struct{}
@@ -16,8 +16,11 @@ func NewOSRunner() *OSRunner {
 	return &OSRunner{}
 }
 
-func (r *OSRunner) Run(ctx context.Context, name string, args ...string) error {
+func (r *OSRunner) Run(ctx context.Context, workDir, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
+	if workDir != "" {
+		cmd.Dir = workDir
+	}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()

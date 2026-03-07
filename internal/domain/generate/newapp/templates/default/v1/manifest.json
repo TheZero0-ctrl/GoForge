@@ -1,0 +1,19 @@
+{
+  "template": "default",
+  "version": "v1",
+  "required_vars": ["AppName", "ModulePath"],
+  "files": [
+    "cmd/api/main.go.tmpl",
+    "cmd/api/routes.go.tmpl",
+    "cmd/api/healthcheck.go.tmpl",
+    "cmd/api/helpers.go.tmpl",
+    "cmd/api/errors.go.tmpl",
+    "cmd/api/middleware.go.tmpl",
+    "internal/data/models.go.tmpl",
+    "internal/validator/validator.go.tmpl",
+    "README.md.tmpl",
+    ".gitignore.tmpl",
+    "Makefile.tmpl",
+    "migrations/.keep.tmpl"
+  ]
+}

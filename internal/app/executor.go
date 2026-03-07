@@ -111,6 +111,27 @@ func (e *Executor) executeOp(ctx context.Context, op plan.Operation, flags comma
 	switch op.Type {
 	case plan.OpNote:
 		return Entry{Status: "INFO", Message: op.Message}, nil
+	case plan.OpEnsureEmptyDir:
+		exists, err := e.fs.Exists(op.Path)
+
+		if err != nil {
+			return Entry{Status: "ERROR", Message: fmt.Sprintf("CHECK %s", op.Path)}, err
+		}
+
+		if !exists {
+			return Entry{Status: "INFO", Message: fmt.Sprintf("target %s does not exist (ok)", op.Path)}, nil
+		}
+
+		empty, err := e.fs.IsDirEmpty(op.Path)
+		if err != nil {
+			return Entry{Status: "ERROR", Message: fmt.Sprintf("CHECK %s", op.Path)}, err
+		}
+
+		if empty {
+			return Entry{Status: "INFO", Message: fmt.Sprintf("target %s is empty (ok)", op.Path)}, nil
+		}
+
+		return Entry{Status: "ERROR", Message: fmt.Sprintf("%s is non-empty", op.Path)}, conflictError{message: fmt.Sprintf("conflict: target directory %s is non-empty (use --force)", op.Path)}
 	case plan.OpMkdir:
 		perm := op.Perm
 		if perm == 0 {
@@ -156,7 +177,7 @@ func (e *Executor) executeOp(ctx context.Context, op plan.Operation, flags comma
 		if len(op.Cmd) == 0 {
 			return Entry{Status: "ERROR", Message: "RUN <empty>"}, errors.New("run operation has empty command")
 		}
-		if err := e.runner.Run(ctx, op.Cmd[0], op.Cmd[1:]...); err != nil {
+		if err := e.runner.Run(ctx, op.Path, op.Cmd[0], op.Cmd[1:]...); err != nil {
 			return Entry{Status: "ERROR", Message: "RUN failed"}, err
 		}
 		return Entry{Status: "RUN", Message: fmt.Sprintf("%s", op.Cmd)}, nil
@@ -175,6 +196,8 @@ func describeOp(op plan.Operation) string {
 		return fmt.Sprintf("WRITE %s", op.Path)
 	case plan.OpRun:
 		return fmt.Sprintf("RUN %v", op.Cmd)
+	case plan.OpEnsureEmptyDir:
+		return fmt.Sprintf("CHECK EMPTY %s", op.Path)
 	default:
 		return fmt.Sprintf("UNKNOWN %q", op.Type)
 	}
