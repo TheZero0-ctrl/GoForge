@@ -24,6 +24,10 @@ func ParseConfig(args []string, p Params) (Config, error) {
 	}
 
 	appName := strings.TrimSpace(args[0])
+	if appName == "" {
+		return Config{}, fmt.Errorf("app name cannot be empty")
+	}
+
 	normalizeAppName := sanitize(appName, "_")
 
 	// TODO: maybe latter we nedd to validate appName and module?
