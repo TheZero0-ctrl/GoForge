@@ -10,6 +10,7 @@ type FS interface {
 	Exists(path string) (bool, error)
 	MkdirAll(path string, perm fs.FileMode) error
 	WriteFile(path string, data []byte, perm fs.FileMode) error
+	IsDirEmpty(path string) (bool, error)
 }
 
 type OSFS struct{}
@@ -27,6 +28,17 @@ func (f *OSFS) Exists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
+}
+
+func (f *OSFS) IsDirEmpty(path string) (bool, error) {
+	entries, err := os.ReadDir(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return len(entries) == 0, nil
 }
 
 func (f *OSFS) MkdirAll(path string, perm fs.FileMode) error {

@@ -70,11 +70,24 @@ func newRootCommand(executor *app.Executor, registry *command.Registry, stdout, 
 
 	for _, cmd := range registry.List() {
 		spec := cmd.Spec()
+
+		module := ""
+		skipGit := false
+		skipTidy := false
+
 		cobraCmd := &cobra.Command{
 			Use:     spec.Use,
 			Short:   spec.Short,
 			Aliases: spec.Aliases,
 			RunE: func(c *cobra.Command, args []string) error {
+				params := map[string]string{}
+
+				if spec.ID == "new" {
+					params["module"] = module
+					params["skip-git"] = fmt.Sprintf("%t", skipGit)
+					params["skip-tidy"] = fmt.Sprintf("%t", skipTidy)
+				}
+
 				input := command.Input{
 					CommandID: spec.ID,
 					Args:      args,
@@ -83,6 +96,7 @@ func newRootCommand(executor *app.Executor, registry *command.Registry, stdout, 
 						Force:  opts.Force,
 						Skip:   opts.Skip,
 					},
+					Params: params,
 				}
 
 				result := executor.Execute(c.Context(), input)
@@ -96,6 +110,11 @@ func newRootCommand(executor *app.Executor, registry *command.Registry, stdout, 
 			},
 		}
 
+		if spec.ID == "new" {
+			cobraCmd.Flags().StringVar(&module, "module", "", "Explicit Go module path")
+			cobraCmd.Flags().BoolVar(&skipGit, "skip-git", false, "Skip git init")
+			cobraCmd.Flags().BoolVar(&skipTidy, "skip-tidy", false, "Skip go mod tidy")
+		}
 		root.AddCommand(cobraCmd)
 	}
 

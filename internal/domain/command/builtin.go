@@ -2,8 +2,8 @@ package command
 
 import (
 	"context"
-	"errors"
 
+	"goforge/internal/domain/generate/newapp"
 	"goforge/internal/domain/plan"
 )
 
@@ -11,24 +11,15 @@ func NewNewCommand() Command {
 	spec := Spec{
 		ID:    "new",
 		Use:   "new <app-name>",
-		Short: "Create a new GoForge API app",
+		Short: "Create a new Go API app",
 	}
 
 	validate := func(input Input) error {
-		if len(input.Args) != 1 {
-			return errors.New("new requires exactly one argument: <app-name>")
-		}
-		return nil
+		return newapp.Validate(input.Args, input)
 	}
 
-	planner := func(_ context.Context, _ Input) (plan.Plan, error) {
-		return plan.Plan{
-			CommandID:   spec.ID,
-			Description: "Create new app scaffold",
-			Ops: []plan.Operation{
-				{Type: plan.OpNote, Message: "phase 0: new command planning is wired; implementation comes in phase 1"},
-			},
-		}, nil
+	planner := func(ctx context.Context, input Input) (plan.Plan, error) {
+		return newapp.Plan(ctx, input.Args, input)
 	}
 
 	return NewStatic(spec, validate, planner)
