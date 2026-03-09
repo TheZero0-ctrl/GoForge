@@ -42,3 +42,33 @@ Planned next steps include:
 go build -o bin/goforge ./cmd/goforge
 ./bin/goforge new demo-api
 ```
+
+## Install
+
+### Binary Release (Linux/macOS/Windows)
+
+You can manually download a prebuilt binary from the Releases page:
+
+- `https://github.com/TheZero0-ctrl/GoForge/releases/latest`
+
+Download the archive for your OS/CPU, extract it, and place `goforge` in your `PATH`.
+
+### Automated install/update (Linux)
+
+Always inspect scripts before piping into `bash`.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TheZero0-ctrl/GoForge/main/scripts/install_update_linux.sh | bash
+```
+
+The installer defaults to `$HOME/.local/bin`. You can override with `DIR`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TheZero0-ctrl/GoForge/main/scripts/install_update_linux.sh | DIR=/usr/local/bin bash
+```
+
+Install a specific version by setting `VERSION` (for example `v0.1.0`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TheZero0-ctrl/GoForge/main/scripts/install_update_linux.sh | VERSION=v0.1.0 bash
+```
