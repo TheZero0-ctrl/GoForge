@@ -9,10 +9,10 @@ REPO="${REPO:-TheZero0-ctrl/GoForge}"
 # map architecture variations to release binaries
 ARCH="$(uname -m)"
 case "$ARCH" in
-  x86_64|amd64) ARCH="x86_64" ;;
+  x86_64|amd64) ARCH="amd64" ;;
   aarch64|arm64) ARCH="arm64" ;;
   *)
-    echo "Unsupported architecture: $ARCH (supported: x86_64, arm64)" >&2
+    echo "Unsupported architecture: $ARCH (supported: amd64, arm64)" >&2
     exit 1
     ;;
 esac
@@ -24,7 +24,7 @@ else
   TAG="$(curl -L -s -H 'Accept: application/json' "https://github.com/${REPO}/releases/latest" | sed -e 's/.*"tag_name":"\([^"]*\)".*/\1/')"
 fi
 
-FILE="goforge_${TAG#v}_Linux_${ARCH}.tar.gz"
+FILE="goforge_${TAG#v}_linux_${ARCH}.tar.gz"
 BASE_URL="https://github.com/${REPO}/releases/download/${TAG}"
 ARCHIVE_URL="${BASE_URL}/${FILE}"
 CHECKSUMS_URL="${BASE_URL}/checksums.txt"
