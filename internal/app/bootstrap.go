@@ -13,6 +13,8 @@ func NewDefaultRegistry() (*command.Registry, error) {
 		command.NewNewCommand(),
 		command.NewGenerateCommand(),
 		command.NewDestroyCommand(),
+		command.NewDBCreateCommand(),
+		command.NewDBDropCommand(),
 	} {
 		if err := reg.Register(cmd); err != nil {
 			return nil, err

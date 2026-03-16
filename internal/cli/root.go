@@ -74,6 +74,8 @@ func newRootCommand(executor *app.Executor, registry *command.Registry, stdout, 
 		module := ""
 		skipGit := false
 		skipTidy := false
+		dsn := ""
+		env := ""
 
 		cobraCmd := &cobra.Command{
 			Use:     spec.Use,
@@ -82,10 +84,14 @@ func newRootCommand(executor *app.Executor, registry *command.Registry, stdout, 
 			RunE: func(c *cobra.Command, args []string) error {
 				params := map[string]string{}
 
-				if spec.ID == "new" {
+				switch spec.ID {
+				case "new":
 					params["module"] = module
 					params["skip-git"] = fmt.Sprintf("%t", skipGit)
 					params["skip-tidy"] = fmt.Sprintf("%t", skipTidy)
+				case "db:create", "db:drop":
+					params["dsn"] = dsn
+					params["env"] = env
 				}
 
 				input := command.Input{
@@ -110,11 +116,16 @@ func newRootCommand(executor *app.Executor, registry *command.Registry, stdout, 
 			},
 		}
 
-		if spec.ID == "new" {
+		switch spec.ID {
+		case "new":
 			cobraCmd.Flags().StringVar(&module, "module", "", "Explicit Go module path")
 			cobraCmd.Flags().BoolVar(&skipGit, "skip-git", false, "Skip git init")
 			cobraCmd.Flags().BoolVar(&skipTidy, "skip-tidy", false, "Skip go mod tidy")
+		case "db:create", "db:drop":
+			cobraCmd.Flags().StringVar(&dsn, "dsn", "", "Database connection string")
+			cobraCmd.Flags().StringVar(&env, "env", "", "Environment to use")
 		}
+
 		root.AddCommand(cobraCmd)
 	}
 
