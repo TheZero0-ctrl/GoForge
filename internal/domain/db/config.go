@@ -13,11 +13,11 @@ import (
 )
 
 type Config struct {
-	DSN string `json:"dsn"`
-	AdminDSN string
+	DSN          string `json:"dsn"`
+	AdminDSN     string
 	DatabaseName string
-	Skip bool
-	Force bool
+	Skip         bool
+	Force        bool
 }
 
 func ParseConfig(p params.Params) (Config, error) {
@@ -58,10 +58,10 @@ func ParseConfig(p params.Params) (Config, error) {
 	adminURL.Path = "/postgres"
 
 	return Config{
-		DSN: dsn,
-		AdminDSN: adminURL.String(),
-		Skip: p.BoolParam("skip"),
-		Force: p.BoolParam("force"),
+		DSN:          dsn,
+		AdminDSN:     adminURL.String(),
+		Skip:         p.BoolParam("skip"),
+		Force:        p.BoolParam("force"),
 		DatabaseName: dbName,
 	}, nil
 }

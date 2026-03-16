@@ -70,9 +70,9 @@ func NewDestroyCommand() Command {
 
 func NewDBCreateCommand() Command {
 	spec := Spec{
-		ID:      "db:create",
-		Use:     "db:create",
-		Short:   "Create database",
+		ID:    "db:create",
+		Use:   "db:create",
+		Short: "Create database",
 	}
 
 	validate := func(input Input) error {
@@ -88,9 +88,9 @@ func NewDBCreateCommand() Command {
 
 func NewDBDropCommand() Command {
 	spec := Spec{
-		ID:      "db:drop",
-		Use:     "db:drop",
-		Short:   "Drop database",
+		ID:    "db:drop",
+		Use:   "db:drop",
+		Short: "Drop database",
 	}
 
 	validate := func(input Input) error {
