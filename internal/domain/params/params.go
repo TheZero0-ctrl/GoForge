@@ -1,4 +1,4 @@
-package newapp
+package params
 
 type Params interface {
 	Param(key string) string

@@ -1,0 +1,17 @@
+[development]
+dsn = "postgres://postgres@localhost/{{ .NormalizeAppName }}?sslmode=disable"
+max_open_conns = 25
+max_idle_conns = 25
+max_idle_time = "15m"
+
+[test]
+dsn = "postgres://postgres@localhost/{{ .NormalizeAppName }}_test?sslmode=disable"
+max_open_conns = 25
+max_idle_conns = 25
+max_idle_time = "15m"
+
+[production]
+dsn = "postgres://postgres@localhost/{{ .NormalizeAppName }}_production?sslmode=disable"
+max_open_conns = 25
+max_idle_conns = 25
+max_idle_time = "15m"

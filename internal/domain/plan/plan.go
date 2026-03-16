@@ -7,6 +7,7 @@ type OperationType string
 const (
 	OpNote           OperationType = "note"
 	OpEnsureEmptyDir OperationType = "ensure_empty_dir"
+	OpEnsureExists   OperationType = "ensure_exists"
 	OpMkdir          OperationType = "mkdir"
 	OpWriteFile      OperationType = "write_file"
 	OpRun            OperationType = "run"

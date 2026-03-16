@@ -132,6 +132,22 @@ func (e *Executor) executeOp(ctx context.Context, op plan.Operation, flags comma
 		}
 
 		return Entry{Status: "ERROR", Message: fmt.Sprintf("%s is non-empty", op.Path)}, conflictError{message: fmt.Sprintf("conflict: target directory %s is non-empty (use --force)", op.Path)}
+	case plan.OpEnsureExists:
+		exists, err := e.fs.Exists(op.Path)
+
+		if err != nil {
+			return Entry{Status: "ERROR", Message: fmt.Sprintf("CHECK %s", op.Path)}, err
+		}
+
+    if !exists {
+        msg := op.Message
+        if msg == "" {
+            msg = fmt.Sprintf("required path %s not found", op.Path)
+        }
+        return Entry{Status: "ERROR", Message: msg}, conflictError{message: msg}
+    }
+
+    return Entry{Status: "INFO", Message: fmt.Sprintf("found %s", op.Path)}, nil
 	case plan.OpMkdir:
 		perm := op.Perm
 		if perm == 0 {

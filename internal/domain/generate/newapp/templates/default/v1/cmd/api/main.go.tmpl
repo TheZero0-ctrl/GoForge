@@ -8,10 +8,12 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	_ "github.com/lib/pq"
-	"{{ .ModulePath }}/internal/data"
+	"github.com/pelletier/go-toml/v2"
+	"tempgo/internal/data"
 )
 
 const version = "1.0.0"
@@ -19,12 +21,7 @@ const version = "1.0.0"
 type config struct {
 	port int
 	env  string
-	db   struct {
-		dsn          string
-		maxOpenConns int
-		maxIdleConns int
-		maxIdleTime  time.Duration
-	}
+	db   databaseConfig
 }
 
 type application struct {
@@ -33,19 +30,29 @@ type application struct {
 	models data.Models
 }
 
+type databaseConfig struct {
+	DSN          string        `toml:"dsn"`
+	MaxOpenConns int           `toml:"max_open_conns"`
+	MaxIdleConns int           `toml:"max_idle_conns"`
+	MaxIdleTime  string `toml:"max_idle_time"`
+}
+
 func main() {
 	var cfg config
 
 	flag.IntVar(&cfg.port, "port", 3000, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
-	flag.StringVar(&cfg.db.dsn, "db-dsn", "postgres://{{ .NormalizeAppName}}_development:password@localhost/{{ .NormalizeAppName}}?sslmode=disable", "PostgreSQL DSN")
-	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
-	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
-	flag.DurationVar(&cfg.db.maxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")
 
 	flag.Parse()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	dbConfig, err := loadDBConfig(cfg.env)
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+	cfg.db = dbConfig
 
 	db, err := openDB(cfg)
 
@@ -80,16 +87,53 @@ func main() {
 	os.Exit(1)
 }
 
+func loadDBConfig(env string) (databaseConfig, error) {
+	configPath := filepath.Join("config", "database.toml")
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return databaseConfig{}, fmt.Errorf("read %s: %w", configPath, err)
+	}
+
+	var configByEnv map[string]databaseConfig
+	if err := toml.Unmarshal(data, &configByEnv); err != nil {
+		return databaseConfig{}, fmt.Errorf("parse %s: %w", configPath, err)
+	}
+
+	dbConfig, ok := configByEnv[env]
+	if !ok {
+		return databaseConfig{}, fmt.Errorf("unknown env %q in %s", env, configPath)
+	}
+
+	if dbConfig.DSN == "" {
+		return databaseConfig{}, fmt.Errorf("empty DSN for %q in %s", env, configPath)
+	}
+	if dbConfig.MaxOpenConns == 0 {
+		return databaseConfig{}, fmt.Errorf("empty max_open_conns for %q in %s", env, configPath)
+	}
+	if dbConfig.MaxIdleConns == 0 {
+		return databaseConfig{}, fmt.Errorf("empty max_idle_conns for %q in %s", env, configPath)
+	}
+	if dbConfig.MaxIdleTime == "" {
+		return databaseConfig{}, fmt.Errorf("empty max_idle_time for %q in %s", env, configPath)
+	}
+
+	return dbConfig, nil
+}
+
 func openDB(cfg config) (*sql.DB, error) {
-	db, err := sql.Open("postgres", cfg.db.dsn)
+	db, err := sql.Open("postgres", cfg.db.DSN)
 
 	if err != nil {
 		return nil, err
 	}
 
-	db.SetMaxOpenConns(cfg.db.maxOpenConns)
-	db.SetMaxIdleConns(cfg.db.maxIdleConns)
-	db.SetConnMaxIdleTime(cfg.db.maxIdleTime)
+	db.SetMaxOpenConns(cfg.db.MaxOpenConns)
+	db.SetMaxIdleConns(cfg.db.MaxIdleConns)
+	maxIdleTime, err := time.ParseDuration(cfg.db.MaxIdleTime)
+	if err != nil {
+		return nil, err
+	}
+	db.SetConnMaxIdleTime(maxIdleTime)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 

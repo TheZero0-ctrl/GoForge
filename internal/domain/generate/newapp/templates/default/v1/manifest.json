@@ -11,6 +11,7 @@
     "cmd/api/middleware.go.tmpl",
     "internal/data/models.go.tmpl",
     "internal/validator/validator.go.tmpl",
+    "config/database.toml.tmpl",
     "README.md.tmpl",
     ".gitignore.tmpl",
     "Makefile.tmpl",

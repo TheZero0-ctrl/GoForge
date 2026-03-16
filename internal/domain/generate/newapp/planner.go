@@ -4,15 +4,16 @@ import (
 	"context"
 	"path/filepath"
 
+	"goforge/internal/domain/params"
 	"goforge/internal/domain/plan"
 )
 
-func Validate(args []string, p Params) error {
+func Validate(args []string, p params.Params) error {
 	_, err := ParseConfig(args, p)
 	return err
 }
 
-func Plan(_ context.Context, args []string, p Params) (plan.Plan, error) {
+func Plan(_ context.Context, args []string, p params.Params) (plan.Plan, error) {
 	cfg, err := ParseConfig(args, p)
 
 	if err != nil {

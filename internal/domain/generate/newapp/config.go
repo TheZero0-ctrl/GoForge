@@ -2,6 +2,7 @@ package newapp
 
 import (
 	"fmt"
+	"goforge/internal/domain/params"
 	"regexp"
 	"strings"
 )
@@ -18,7 +19,7 @@ type Config struct {
 	SkipTidy         bool
 }
 
-func ParseConfig(args []string, p Params) (Config, error) {
+func ParseConfig(args []string, p params.Params) (Config, error) {
 	if len(args) != 1 {
 		return Config{}, fmt.Errorf("new requires exactly one argument: <app-name>")
 	}

@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 
+	"goforge/internal/domain/db"
 	"goforge/internal/domain/generate/newapp"
 	"goforge/internal/domain/plan"
 )
@@ -65,4 +66,40 @@ func NewDestroyCommand() Command {
 	}
 
 	return NewStatic(spec, nil, planner)
+}
+
+func NewDBCreateCommand() Command {
+	spec := Spec{
+		ID:      "db:create",
+		Use:     "db:create",
+		Short:   "Create database",
+	}
+
+	validate := func(input Input) error {
+		return db.ValidateCreate(input.Args, input)
+	}
+
+	planner := func(ctx context.Context, input Input) (plan.Plan, error) {
+		return db.PlanCreate(ctx, input.Args, input)
+	}
+
+	return NewStatic(spec, validate, planner)
+}
+
+func NewDBDropCommand() Command {
+	spec := Spec{
+		ID:      "db:drop",
+		Use:     "db:drop",
+		Short:   "Drop database",
+	}
+
+	validate := func(input Input) error {
+		return db.ValidateDrop(input.Args, input)
+	}
+
+	planner := func(ctx context.Context, input Input) (plan.Plan, error) {
+		return db.PlanDrop(ctx, input.Args, input)
+	}
+
+	return NewStatic(spec, validate, planner)
 }
