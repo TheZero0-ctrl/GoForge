@@ -4,7 +4,7 @@ GoForge is a Rails-inspired CLI for building Go APIs quickly.
 
 The generated app layout and code organization are inspired by patterns from the book _Let's Go Further_.
 
-## Implemented Command
+## Implemented Commands
 
 ### `goforge new <app-name>`
 
@@ -20,6 +20,18 @@ Supported flags for `new`:
 - `--module <path>`: set an explicit Go module path
 - `--skip-git`: skip `git init`
 - `--skip-tidy`: skip `go mod tidy`
+
+### `goforge db:create` and `goforge db:drop`
+
+Creates/drops the configured PostgreSQL database
+
+Supported flags:
+
+- `--dsn <postgres-dsn>`: use an explicit PostgreSQL connection string
+- `--env <name>`: load the DSN from `config/database.toml` for the selected environment
+
+If `--dsn` is omitted, GoForge reads the DSN from `config/database.toml` and defaults to the `development` environment.
+
 
 Global flags available across commands:
 
@@ -41,6 +53,8 @@ Planned next steps include:
 ```bash
 go build -o bin/goforge ./cmd/goforge
 ./bin/goforge new demo-api
+./bin/goforge db:create --dsn "postgres://localhost:5432/demo_api?sslmode=disable"
+./bin/goforge db:drop --dsn "postgres://localhost:5432/demo_api?sslmode=disable"
 ```
 
 ## Install
