@@ -4,6 +4,7 @@ package e2e_test
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -15,7 +16,7 @@ func TestNewCommandE2EScaffoldsApp(t *testing.T) {
 	binary := e2e.BuildBinary(t, repoRoot)
 	workspace := t.TempDir()
 
-	result := e2e.Run(t, binary, workspace, "new", "demo-api", "--skip-git", "--skip-tidy")
+	result := e2e.Run(t, binary, workspace, "new", "demo-api", "--skip-git")
 	if result.ExitCode != 0 {
 		t.Fatalf("expected exit code 0, got %d\nstdout:\n%s\nstderr:\n%s", result.ExitCode, result.Stdout, result.Stderr)
 	}
@@ -32,4 +33,11 @@ func TestNewCommandE2EScaffoldsApp(t *testing.T) {
 		t.Fatalf("read go.mod: %v", err)
 	}
 	e2e.AssertContains(t, string(goMod), "module demo-api")
+
+	buildCmd := exec.Command("go", "build", "./...")
+	buildCmd.Dir = appRoot
+	buildOut, err := buildCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("expected generated app to compile: %v\n%s", err, string(buildOut))
+	}
 }
