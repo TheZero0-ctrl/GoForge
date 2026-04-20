@@ -88,11 +88,11 @@ func TestPlanCreatesMigrationPairWithSharedTimestamp(t *testing.T) {
 		t.Fatalf("expected .down.sql file, got %q", down.Path)
 	}
 
-	if !strings.Contains(string(up.Data), "CREATE TABLE IF NOT EXISTS users") {
+	if !strings.Contains(string(up.Data), "CREATE TABLE IF NOT EXISTS \"users\"") {
 		t.Fatalf("expected create table scaffold in up migration, got %q", string(up.Data))
 	}
 
-	if !strings.Contains(string(down.Data), "DROP TABLE IF EXISTS users") {
+	if !strings.Contains(string(down.Data), "DROP TABLE IF EXISTS \"users\"") {
 		t.Fatalf("expected drop table scaffold in down migration, got %q", string(down.Data))
 	}
 
@@ -135,11 +135,25 @@ func TestPlanRemovePatternWithoutTypeKeepsDownEmpty(t *testing.T) {
 	up := planned.Ops[1]
 	down := planned.Ops[2]
 
-	if !strings.Contains(string(up.Data), "ALTER TABLE users DROP COLUMN IF EXISTS email;") {
+	if !strings.Contains(string(up.Data), "ALTER TABLE \"users\" DROP COLUMN IF EXISTS \"email\";") {
 		t.Fatalf("expected drop column scaffold in up migration, got %q", string(up.Data))
 	}
 
 	if len(down.Data) != 0 {
 		t.Fatalf("expected empty down migration for remove pattern without type, got %q", string(down.Data))
+	}
+}
+
+func TestPlanAddPatternQuotesReservedColumnName(t *testing.T) {
+	t.Parallel()
+
+	planned, err := Plan(context.Background(), []string{"add_desc_to_products", "desc:string"}, testParams{})
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+
+	up := planned.Ops[1]
+	if !strings.Contains(string(up.Data), "ALTER TABLE \"products\" ADD COLUMN IF NOT EXISTS \"desc\" text;") {
+		t.Fatalf("expected quoted add column scaffold, got %q", string(up.Data))
 	}
 }

@@ -21,20 +21,25 @@ Supported flags for `new`:
 - `--skip-git`: skip `git init`
 - `--skip-tidy`: skip `go mod tidy`
 
-### `goforge db:create` and `goforge db:drop`
+### `goforge db:create`, `goforge db:drop`, `goforge db:migrate`, `goforge db:rollback`, and `goforge db:migrate:force`
 
-Creates/drops the configured PostgreSQL database
+Creates/drops the configured PostgreSQL database, applies migrations, rolls back steps, and recovers dirty migration state
 
 Supported flags:
 
 - `--dsn <postgres-dsn>`: use an explicit PostgreSQL connection string
 - `--env <name>`: load the DSN from `config/database.toml` for the selected environment
 
-If `--dsn` is omitted, GoForge reads the DSN from `config/database.toml` and defaults to the `development` environment.
+If `--dsn` is omitted, GoForge reads DSN from `config/database.toml` (`development` by default).
+
+If `db:migrate` reports a dirty version error, recover with:
+
+- `goforge db:migrate:force <version> --dsn <postgres-dsn>`
+- rerun `goforge db:migrate`
 
 ### `goforge generate migration <name> [field:type ...]`
 
-Generates an empty migration pair in `migrations/`:
+Generates a timestamped migration pair in `migrations/`:
 
 - `migrations/<timestamp>_<name>.up.sql`
 - `migrations/<timestamp>_<name>.down.sql`
@@ -42,6 +47,8 @@ Generates an empty migration pair in `migrations/`:
 Alias form is supported:
 
 - `goforge g migration <name> [field:type ...]`
+
+Common Rails-style names like `create_<table>`, `add_<column>_to_<table>`, and `remove_<column>_from_<table>` generate starter SQL; custom names fall back to empty files.
 
 
 Global flags available across commands:
@@ -64,6 +71,9 @@ Planned next steps include:
 go build -o bin/goforge ./cmd/goforge
 ./bin/goforge new demo-api
 ./bin/goforge db:create --dsn "postgres://localhost:5432/demo_api?sslmode=disable"
+./bin/goforge db:migrate --dsn "postgres://localhost:5432/demo_api?sslmode=disable"
+./bin/goforge db:rollback 1 --dsn "postgres://localhost:5432/demo_api?sslmode=disable"
+./bin/goforge db:migrate:force 20260420034348 --dsn "postgres://localhost:5432/demo_api?sslmode=disable"
 ./bin/goforge db:drop --dsn "postgres://localhost:5432/demo_api?sslmode=disable"
 ```
 

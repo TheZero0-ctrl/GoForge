@@ -53,9 +53,9 @@ func TestGenerateMigrationCreatePatternWritesScaffoldedSQL(t *testing.T) {
 		t.Fatalf("read down migration: %v", err)
 	}
 
-	e2e.AssertContains(t, string(upData), "CREATE TABLE IF NOT EXISTS users")
-	e2e.AssertContains(t, string(upData), "name text")
-	e2e.AssertContains(t, string(downData), "DROP TABLE IF EXISTS users")
+	e2e.AssertContains(t, string(upData), "CREATE TABLE IF NOT EXISTS \"users\"")
+	e2e.AssertContains(t, string(upData), "\"name\" text")
+	e2e.AssertContains(t, string(downData), "DROP TABLE IF EXISTS \"users\"")
 }
 
 func TestGenerateMigrationCustomNameWritesEmptyFiles(t *testing.T) {
@@ -107,10 +107,30 @@ func TestGenerateMigrationRemovePatternWithoutTypeKeepsDownEmpty(t *testing.T) {
 		t.Fatalf("read down migration: %v", err)
 	}
 
-	e2e.AssertContains(t, string(upData), "ALTER TABLE users DROP COLUMN IF EXISTS email;")
+	e2e.AssertContains(t, string(upData), "ALTER TABLE \"users\" DROP COLUMN IF EXISTS \"email\";")
 	if len(downData) != 0 {
 		t.Fatalf("expected empty down migration when remove pattern has no type, got %q", string(downData))
 	}
+}
+
+func TestGenerateMigrationAddPatternQuotesReservedIdentifier(t *testing.T) {
+	repoRoot := e2e.RepoRoot(t)
+	binary := e2e.BuildBinary(t, repoRoot)
+	workspace := t.TempDir()
+
+	result := e2e.Run(t, binary, workspace, "g", "migration", "add_desc_to_products", "desc:string")
+	if result.ExitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d\nstdout:\n%s\nstderr:\n%s", result.ExitCode, result.Stdout, result.Stderr)
+	}
+
+	upPath, _ := findMigrationPair(t, filepath.Join(workspace, "migrations"), "add_desc_to_products")
+
+	upData, err := os.ReadFile(upPath)
+	if err != nil {
+		t.Fatalf("read up migration: %v", err)
+	}
+
+	e2e.AssertContains(t, string(upData), "ALTER TABLE \"products\" ADD COLUMN IF NOT EXISTS \"desc\" text;")
 }
 
 func findMigrationPair(t *testing.T, migrationsDir, name string) (string, string) {

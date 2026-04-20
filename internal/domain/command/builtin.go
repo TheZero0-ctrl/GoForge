@@ -122,3 +122,57 @@ func NewDBDropCommand() Command {
 
 	return NewStatic(spec, validate, planner)
 }
+
+func NewDBMigrateCommand() Command {
+	spec := Spec{
+		ID:    "db:migrate",
+		Use:   "db:migrate",
+		Short: "Apply database migrations",
+	}
+
+	validate := func(input Input) error {
+		return db.ValidateMigrate(input.Args, input)
+	}
+
+	planner := func(ctx context.Context, input Input) (plan.Plan, error) {
+		return db.PlanMigrate(ctx, input.Args, input)
+	}
+
+	return NewStatic(spec, validate, planner)
+}
+
+func NewDBRollbackCommand() Command {
+	spec := Spec{
+		ID:    "db:rollback",
+		Use:   "db:rollback [steps]",
+		Short: "Rollback database migrations",
+	}
+
+	validate := func(input Input) error {
+		return db.ValidateRollback(input.Args, input)
+	}
+
+	planner := func(ctx context.Context, input Input) (plan.Plan, error) {
+		return db.PlanRollback(ctx, input.Args, input)
+	}
+
+	return NewStatic(spec, validate, planner)
+}
+
+func NewDBMigrateForceCommand() Command {
+	spec := Spec{
+		ID:    "db:migrate:force",
+		Use:   "db:migrate:force <version>",
+		Short: "Force database migration version",
+	}
+
+	validate := func(input Input) error {
+		return db.ValidateMigrateForce(input.Args, input)
+	}
+
+	planner := func(ctx context.Context, input Input) (plan.Plan, error) {
+		return db.PlanMigrateForce(ctx, input.Args, input)
+	}
+
+	return NewStatic(spec, validate, planner)
+}

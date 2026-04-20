@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"goforge/internal/domain/command"
 	"goforge/internal/domain/plan"
+	"goforge/internal/infra/dbmigrate"
 	"goforge/internal/infra/fs"
 	"goforge/internal/infra/proc"
 )
@@ -39,10 +42,11 @@ type Executor struct {
 	registry *command.Registry
 	fs       fs.FS
 	runner   proc.Runner
+	migrator dbmigrate.Runner
 }
 
-func NewExecutor(registry *command.Registry, fileSystem fs.FS, runner proc.Runner) *Executor {
-	return &Executor{registry: registry, fs: fileSystem, runner: runner}
+func NewExecutor(registry *command.Registry, fileSystem fs.FS, runner proc.Runner, migrator dbmigrate.Runner) *Executor {
+	return &Executor{registry: registry, fs: fileSystem, runner: runner, migrator: migrator}
 }
 
 func (e *Executor) Execute(ctx context.Context, input command.Input) Result {
@@ -197,6 +201,80 @@ func (e *Executor) executeOp(ctx context.Context, op plan.Operation, flags comma
 			return Entry{Status: "ERROR", Message: "RUN failed"}, err
 		}
 		return Entry{Status: "RUN", Message: fmt.Sprintf("%s", op.Cmd)}, nil
+	case plan.OpMigrateUp:
+		if e.migrator == nil {
+			return Entry{Status: "ERROR", Message: "MIGRATE UP <unavailable>"}, errors.New("migrate runner is not configured")
+		}
+
+		sourceURL, databaseURL, opErr := migrateURLs(op)
+		if opErr != nil {
+			return Entry{Status: "ERROR", Message: "MIGRATE UP <invalid>"}, opErr
+		}
+
+		err := e.migrator.Up(sourceURL, databaseURL)
+		if err != nil {
+			if errors.Is(err, dbmigrate.ErrNoChange) {
+				return Entry{Status: "SKIP", Message: "database already up to date"}, nil
+			}
+			var dirty dbmigrate.ErrDirty
+			if errors.As(err, &dirty) {
+				hint := fmt.Sprintf("database is dirty at version %d; run `goforge db:migrate:force %d` then rerun `goforge db:migrate`", dirty.Version, dirty.Version)
+				return Entry{Status: "ERROR", Message: hint}, conflictError{message: hint}
+			}
+			return Entry{Status: "ERROR", Message: "MIGRATE UP failed"}, err
+		}
+
+		return Entry{Status: "RUN", Message: fmt.Sprintf("MIGRATE UP %s", sourceURL)}, nil
+	case plan.OpMigrateDown:
+		if e.migrator == nil {
+			return Entry{Status: "ERROR", Message: "MIGRATE DOWN <unavailable>"}, errors.New("migrate runner is not configured")
+		}
+
+		sourceURL, databaseURL, opErr := migrateURLs(op)
+		if opErr != nil {
+			return Entry{Status: "ERROR", Message: "MIGRATE DOWN <invalid>"}, opErr
+		}
+
+		steps, opErr := migratePositiveInt(op, plan.MigrateParamSteps)
+		if opErr != nil {
+			return Entry{Status: "ERROR", Message: "MIGRATE DOWN <invalid>"}, opErr
+		}
+
+		err := e.migrator.DownSteps(sourceURL, databaseURL, steps)
+		if err != nil {
+			if errors.Is(err, dbmigrate.ErrNoChange) {
+				return Entry{Status: "SKIP", Message: "database already at base migration"}, nil
+			}
+			var dirty dbmigrate.ErrDirty
+			if errors.As(err, &dirty) {
+				hint := fmt.Sprintf("database is dirty at version %d; run `goforge db:migrate:force %d` then rerun `goforge db:rollback`", dirty.Version, dirty.Version)
+				return Entry{Status: "ERROR", Message: hint}, conflictError{message: hint}
+			}
+			return Entry{Status: "ERROR", Message: "MIGRATE DOWN failed"}, err
+		}
+
+		return Entry{Status: "RUN", Message: fmt.Sprintf("MIGRATE DOWN %d %s", steps, sourceURL)}, nil
+	case plan.OpMigrateForce:
+		if e.migrator == nil {
+			return Entry{Status: "ERROR", Message: "MIGRATE FORCE <unavailable>"}, errors.New("migrate runner is not configured")
+		}
+
+		sourceURL, databaseURL, opErr := migrateURLs(op)
+		if opErr != nil {
+			return Entry{Status: "ERROR", Message: "MIGRATE FORCE <invalid>"}, opErr
+		}
+
+		version, opErr := migrateInt(op, plan.MigrateParamVersion)
+		if opErr != nil {
+			return Entry{Status: "ERROR", Message: "MIGRATE FORCE <invalid>"}, opErr
+		}
+
+		err := e.migrator.Force(sourceURL, databaseURL, version)
+		if err != nil {
+			return Entry{Status: "ERROR", Message: "MIGRATE FORCE failed"}, err
+		}
+
+		return Entry{Status: "RUN", Message: fmt.Sprintf("MIGRATE FORCE %d %s", version, sourceURL)}, nil
 	default:
 		return Entry{Status: "ERROR", Message: fmt.Sprintf("unknown op %q", op.Type)}, fmt.Errorf("unknown operation type %q", op.Type)
 	}
@@ -212,9 +290,63 @@ func describeOp(op plan.Operation) string {
 		return fmt.Sprintf("WRITE %s", op.Path)
 	case plan.OpRun:
 		return fmt.Sprintf("RUN %v", op.Cmd)
+	case plan.OpMigrateUp:
+		sourceURL := strings.TrimSpace(op.Params[plan.MigrateParamSourceURL])
+		if sourceURL == "" {
+			return "MIGRATE UP <missing-source>"
+		}
+		return fmt.Sprintf("MIGRATE UP %s", sourceURL)
+	case plan.OpMigrateDown:
+		sourceURL := strings.TrimSpace(op.Params[plan.MigrateParamSourceURL])
+		steps := strings.TrimSpace(op.Params[plan.MigrateParamSteps])
+		if sourceURL == "" || steps == "" {
+			return "MIGRATE DOWN <missing-params>"
+		}
+		return fmt.Sprintf("MIGRATE DOWN %s %s", steps, sourceURL)
+	case plan.OpMigrateForce:
+		sourceURL := strings.TrimSpace(op.Params[plan.MigrateParamSourceURL])
+		version := strings.TrimSpace(op.Params[plan.MigrateParamVersion])
+		if sourceURL == "" || version == "" {
+			return "MIGRATE FORCE <missing-params>"
+		}
+		return fmt.Sprintf("MIGRATE FORCE %s %s", version, sourceURL)
 	case plan.OpEnsureEmptyDir:
 		return fmt.Sprintf("CHECK EMPTY %s", op.Path)
+	case plan.OpEnsureExists:
+		return fmt.Sprintf("CHECK EXISTS %s", op.Path)
 	default:
 		return fmt.Sprintf("UNKNOWN %q", op.Type)
 	}
+}
+
+func migrateURLs(op plan.Operation) (string, string, error) {
+	sourceURL := strings.TrimSpace(op.Params[plan.MigrateParamSourceURL])
+	databaseURL := strings.TrimSpace(op.Params[plan.MigrateParamDatabaseURL])
+	if sourceURL == "" || databaseURL == "" {
+		return "", "", errors.New("migrate operation requires source and database URLs")
+	}
+	return sourceURL, databaseURL, nil
+}
+
+func migratePositiveInt(op plan.Operation, key string) (int, error) {
+	value, err := migrateInt(op, key)
+	if err != nil {
+		return 0, err
+	}
+	if value <= 0 {
+		return 0, fmt.Errorf("migrate operation requires %s to be positive", key)
+	}
+	return value, nil
+}
+
+func migrateInt(op plan.Operation, key string) (int, error) {
+	raw := strings.TrimSpace(op.Params[key])
+	if raw == "" {
+		return 0, fmt.Errorf("migrate operation requires param %s", key)
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf("migrate operation param %s must be an integer", key)
+	}
+	return value, nil
 }

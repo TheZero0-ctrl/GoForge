@@ -11,6 +11,16 @@ const (
 	OpMkdir          OperationType = "mkdir"
 	OpWriteFile      OperationType = "write_file"
 	OpRun            OperationType = "run"
+	OpMigrateUp      OperationType = "migrate_up"
+	OpMigrateDown    OperationType = "migrate_down"
+	OpMigrateForce   OperationType = "migrate_force"
+)
+
+const (
+	MigrateParamSourceURL   = "source_url"
+	MigrateParamDatabaseURL = "database_url"
+	MigrateParamSteps       = "steps"
+	MigrateParamVersion     = "version"
 )
 
 type Operation struct {
@@ -20,6 +30,7 @@ type Operation struct {
 	Perm    os.FileMode
 	Cmd     []string
 	Message string
+	Params  map[string]string
 }
 
 type Plan struct {

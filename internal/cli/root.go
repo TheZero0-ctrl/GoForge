@@ -120,7 +120,7 @@ func buildCobraCommand(spec command.Spec, executor *app.Executor, opts *rootOpti
 				params["module"] = module
 				params["skip-git"] = fmt.Sprintf("%t", skipGit)
 				params["skip-tidy"] = fmt.Sprintf("%t", skipTidy)
-			case "db:create", "db:drop":
+			case "db:create", "db:drop", "db:migrate", "db:rollback", "db:migrate:force":
 				params["dsn"] = dsn
 				params["env"] = env
 			}
@@ -152,7 +152,7 @@ func buildCobraCommand(spec command.Spec, executor *app.Executor, opts *rootOpti
 		cobraCmd.Flags().StringVar(&module, "module", "", "Explicit Go module path")
 		cobraCmd.Flags().BoolVar(&skipGit, "skip-git", false, "Skip git init")
 		cobraCmd.Flags().BoolVar(&skipTidy, "skip-tidy", false, "Skip go mod tidy")
-	case "db:create", "db:drop":
+	case "db:create", "db:drop", "db:migrate", "db:rollback", "db:migrate:force":
 		cobraCmd.Flags().StringVar(&dsn, "dsn", "", "Database connection string")
 		cobraCmd.Flags().StringVar(&env, "env", "", "Environment to use")
 	}

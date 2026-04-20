@@ -2,6 +2,7 @@ package app
 
 import (
 	"goforge/internal/domain/command"
+	"goforge/internal/infra/dbmigrate"
 	"goforge/internal/infra/fs"
 	"goforge/internal/infra/proc"
 )
@@ -16,6 +17,9 @@ func NewDefaultRegistry() (*command.Registry, error) {
 		command.NewDestroyCommand(),
 		command.NewDBCreateCommand(),
 		command.NewDBDropCommand(),
+		command.NewDBMigrateCommand(),
+		command.NewDBRollbackCommand(),
+		command.NewDBMigrateForceCommand(),
 	} {
 		if err := reg.Register(cmd); err != nil {
 			return nil, err
@@ -26,5 +30,5 @@ func NewDefaultRegistry() (*command.Registry, error) {
 }
 
 func NewDefaultExecutor(reg *command.Registry) *Executor {
-	return NewExecutor(reg, fs.NewOSFS(), proc.NewOSRunner())
+	return NewExecutor(reg, fs.NewOSFS(), proc.NewOSRunner(), dbmigrate.NewRunner())
 }

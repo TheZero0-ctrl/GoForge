@@ -148,16 +148,16 @@ func renderMigration(pattern parsedPattern, fields map[string]fieldSpec) ([]byte
 }
 
 func renderCreateTable(table string, fields map[string]fieldSpec) ([]byte, []byte) {
-	columns := []string{"id bigserial PRIMARY KEY"}
+	columns := []string{fmt.Sprintf("%s bigserial PRIMARY KEY", quoteIdent("id"))}
 
 	names := sortedFieldNames(fields)
 	for _, name := range names {
 		spec := fields[name]
-		columns = append(columns, fmt.Sprintf("%s %s", spec.name, spec.sqlType))
+		columns = append(columns, fmt.Sprintf("%s %s", quoteIdent(spec.name), spec.sqlType))
 	}
 
-	up := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (\n  %s\n);\n", table, strings.Join(columns, ",\n  "))
-	down := fmt.Sprintf("DROP TABLE IF EXISTS %s;\n", table)
+	up := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (\n  %s\n);\n", quoteIdent(table), strings.Join(columns, ",\n  "))
+	down := fmt.Sprintf("DROP TABLE IF EXISTS %s;\n", quoteIdent(table))
 
 	return []byte(up), []byte(down)
 }
@@ -168,22 +168,27 @@ func renderAddColumn(table, column string, fields map[string]fieldSpec) ([]byte,
 		return []byte{}, []byte{}
 	}
 
-	up := fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s %s;\n", table, column, spec.sqlType)
-	down := fmt.Sprintf("ALTER TABLE %s DROP COLUMN IF EXISTS %s;\n", table, column)
+	up := fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s %s;\n", quoteIdent(table), quoteIdent(column), spec.sqlType)
+	down := fmt.Sprintf("ALTER TABLE %s DROP COLUMN IF EXISTS %s;\n", quoteIdent(table), quoteIdent(column))
 
 	return []byte(up), []byte(down)
 }
 
 func renderRemoveColumn(table, column string, fields map[string]fieldSpec) ([]byte, []byte) {
-	up := fmt.Sprintf("ALTER TABLE %s DROP COLUMN IF EXISTS %s;\n", table, column)
+	up := fmt.Sprintf("ALTER TABLE %s DROP COLUMN IF EXISTS %s;\n", quoteIdent(table), quoteIdent(column))
 
 	spec, ok := fields[column]
 	if !ok {
 		return []byte(up), []byte{}
 	}
 
-	down := fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s %s;\n", table, column, spec.sqlType)
+	down := fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s %s;\n", quoteIdent(table), quoteIdent(column), spec.sqlType)
 	return []byte(up), []byte(down)
+}
+
+func quoteIdent(identifier string) string {
+	escaped := strings.ReplaceAll(identifier, `"`, `""`)
+	return `"` + escaped + `"`
 }
 
 func sortedFieldNames(fields map[string]fieldSpec) []string {
