@@ -12,6 +12,7 @@ func NewDefaultRegistry() (*command.Registry, error) {
 	for _, cmd := range []command.Command{
 		command.NewNewCommand(),
 		command.NewGenerateCommand(),
+		command.NewGenerateMigrationCommand(),
 		command.NewDestroyCommand(),
 		command.NewDBCreateCommand(),
 		command.NewDBDropCommand(),

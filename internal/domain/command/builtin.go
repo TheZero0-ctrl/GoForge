@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"goforge/internal/domain/db"
+	"goforge/internal/domain/generate/migration"
 	"goforge/internal/domain/generate/newapp"
 	"goforge/internal/domain/plan"
 )
@@ -66,6 +67,24 @@ func NewDestroyCommand() Command {
 	}
 
 	return NewStatic(spec, nil, planner)
+}
+
+func NewGenerateMigrationCommand() Command {
+	spec := Spec{
+		ID:    "generate:migration",
+		Use:   "migration <name> [field:type...]",
+		Short: "Generate migration files",
+	}
+
+	validate := func(input Input) error {
+		return migration.Validate(input.Args, input)
+	}
+
+	planner := func(ctx context.Context, input Input) (plan.Plan, error) {
+		return migration.Plan(ctx, input.Args, input)
+	}
+
+	return NewStatic(spec, validate, planner)
 }
 
 func NewDBCreateCommand() Command {

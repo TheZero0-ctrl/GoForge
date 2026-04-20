@@ -32,6 +32,17 @@ Supported flags:
 
 If `--dsn` is omitted, GoForge reads the DSN from `config/database.toml` and defaults to the `development` environment.
 
+### `goforge generate migration <name> [field:type ...]`
+
+Generates an empty migration pair in `migrations/`:
+
+- `migrations/<timestamp>_<name>.up.sql`
+- `migrations/<timestamp>_<name>.down.sql`
+
+Alias form is supported:
+
+- `goforge g migration <name> [field:type ...]`
+
 
 Global flags available across commands:
 
@@ -43,7 +54,6 @@ Global flags available across commands:
 
 Planned next steps include:
 
-- `goforge generate migration <name>`
 - `goforge generate resource <name> <field:type>...`
 - `goforge generate scaffold <name> <field:type>...`
 - concrete `destroy` subcommands that reverse generated artifacts
