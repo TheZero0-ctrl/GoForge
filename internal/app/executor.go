@@ -152,6 +152,22 @@ func (e *Executor) executeOp(ctx context.Context, op plan.Operation, flags comma
 		}
 
 		return Entry{Status: "INFO", Message: fmt.Sprintf("found %s", op.Path)}, nil
+	case plan.OpEnsureNotExists:
+		exists, err := e.fs.Exists(op.Path)
+
+		if err != nil {
+			return Entry{Status: "ERROR", Message: fmt.Sprintf("CHECK %s", op.Path)}, err
+		}
+
+		if exists {
+			msg := op.Message
+			if msg == "" {
+				msg = fmt.Sprintf("required absent path %s exists", op.Path)
+			}
+			return Entry{Status: "ERROR", Message: msg}, conflictError{message: msg}
+		}
+
+		return Entry{Status: "INFO", Message: fmt.Sprintf("missing %s (ok)", op.Path)}, nil
 	case plan.OpMkdir:
 		perm := op.Perm
 		if perm == 0 {
@@ -193,6 +209,35 @@ func (e *Executor) executeOp(ctx context.Context, op plan.Operation, flags comma
 			return Entry{Status: "UPDATE", Message: op.Path}, nil
 		}
 		return Entry{Status: "CREATE", Message: op.Path}, nil
+	case plan.OpUpdateFile:
+		exists, err := e.fs.Exists(op.Path)
+		if err != nil {
+			return Entry{Status: "ERROR", Message: fmt.Sprintf("CHECK %s", op.Path)}, err
+		}
+
+		if !exists {
+			msg := fmt.Sprintf("%s does not exist for update", op.Path)
+			return Entry{Status: "ERROR", Message: msg}, conflictError{message: "conflict: " + msg}
+		}
+
+		if flags.Skip {
+			return Entry{Status: "SKIP", Message: fmt.Sprintf("%s (exists)", op.Path)}, nil
+		}
+
+		if err := e.fs.MkdirAll(filepath.Dir(op.Path), defaultDirPerm); err != nil {
+			return Entry{Status: "ERROR", Message: fmt.Sprintf("MKDIR %s", filepath.Dir(op.Path))}, err
+		}
+
+		perm := op.Perm
+		if perm == 0 {
+			perm = defaultFilePerm
+		}
+
+		if err := e.fs.WriteFile(op.Path, op.Data, perm); err != nil {
+			return Entry{Status: "ERROR", Message: fmt.Sprintf("WRITE %s", op.Path)}, err
+		}
+
+		return Entry{Status: "UPDATE", Message: op.Path}, nil
 	case plan.OpRun:
 		if len(op.Cmd) == 0 {
 			return Entry{Status: "ERROR", Message: "RUN <empty>"}, errors.New("run operation has empty command")
@@ -288,6 +333,8 @@ func describeOp(op plan.Operation) string {
 		return fmt.Sprintf("MKDIR %s", op.Path)
 	case plan.OpWriteFile:
 		return fmt.Sprintf("WRITE %s", op.Path)
+	case plan.OpUpdateFile:
+		return fmt.Sprintf("UPDATE %s", op.Path)
 	case plan.OpRun:
 		return fmt.Sprintf("RUN %v", op.Cmd)
 	case plan.OpMigrateUp:
@@ -314,6 +361,8 @@ func describeOp(op plan.Operation) string {
 		return fmt.Sprintf("CHECK EMPTY %s", op.Path)
 	case plan.OpEnsureExists:
 		return fmt.Sprintf("CHECK EXISTS %s", op.Path)
+	case plan.OpEnsureNotExists:
+		return fmt.Sprintf("CHECK NOT EXISTS %s", op.Path)
 	default:
 		return fmt.Sprintf("UNKNOWN %q", op.Type)
 	}

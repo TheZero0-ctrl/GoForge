@@ -6,6 +6,7 @@ import (
 	"goforge/internal/domain/db"
 	"goforge/internal/domain/generate/migration"
 	"goforge/internal/domain/generate/newapp"
+	"goforge/internal/domain/generate/resource"
 	"goforge/internal/domain/plan"
 )
 
@@ -82,6 +83,24 @@ func NewGenerateMigrationCommand() Command {
 
 	planner := func(ctx context.Context, input Input) (plan.Plan, error) {
 		return migration.Plan(ctx, input.Args, input)
+	}
+
+	return NewStatic(spec, validate, planner)
+}
+
+func NewGenerateResourceCommand() Command {
+	spec := Spec{
+		ID:    "generate:resource",
+		Use:   "resource <name> <field:type>...",
+		Short: "Generate resource files, wiring, and migration",
+	}
+
+	validate := func(input Input) error {
+		return resource.Validate(input.Args, input)
+	}
+
+	planner := func(ctx context.Context, input Input) (plan.Plan, error) {
+		return resource.Plan(ctx, input.Args, input)
 	}
 
 	return NewStatic(spec, validate, planner)

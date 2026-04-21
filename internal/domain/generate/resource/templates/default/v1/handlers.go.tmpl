@@ -1,0 +1,173 @@
+package main
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+{{- if .HasTimeField }}
+	"time"
+{{- end }}
+
+	"{{ .ModulePath }}/internal/data"
+	"{{ .ModulePath }}/internal/validator"
+)
+
+func (app *application) list{{ .PluralPascal }}Handler(w http.ResponseWriter, r *http.Request) {
+	{{ .PluralLowerCamel }}, err := app.models.{{ .PluralPascal }}.GetAll()
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"{{ .Plural }}": {{ .PluralLowerCamel }}}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+func (app *application) create{{ .SingularPascal }}Handler(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+{{- range .Fields }}
+		{{ .NamePascal }} {{ .HandlerGoType }} `json:"{{ .NameSnake }}"`
+{{- end }}
+	}
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	{{ .SingularCamel }} := &data.{{ .SingularPascal }}{
+{{- range .Fields }}
+		{{ .NamePascal }}: input.{{ .NamePascal }},
+{{- end }}
+	}
+
+	v := validator.New()
+	if data.Validate{{ .SingularPascal }}(v, {{ .SingularCamel }}); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	err = app.models.{{ .PluralPascal }}.Insert({{ .SingularCamel }})
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	headers := make(http.Header)
+	headers.Set("Location", fmt.Sprintf("/v1/{{ .Plural }}/%d", {{ .SingularCamel }}.ID))
+
+	err = app.writeJSON(w, http.StatusCreated, envelope{"{{ .Singular }}": {{ .SingularCamel }}}, headers)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+func (app *application) show{{ .SingularPascal }}Handler(w http.ResponseWriter, r *http.Request) {
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	{{ .SingularCamel }}, err := app.models.{{ .PluralPascal }}.Get(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"{{ .Singular }}": {{ .SingularCamel }}}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+func (app *application) update{{ .SingularPascal }}Handler(w http.ResponseWriter, r *http.Request) {
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	{{ .SingularCamel }}, err := app.models.{{ .PluralPascal }}.Get(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	var input struct {
+{{- range .Fields }}
+		{{ .NamePascal }} {{ .HandlerPtrType }} `json:"{{ .NameSnake }}"`
+{{- end }}
+	}
+
+	err = app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+{{- range .Fields }}
+	if input.{{ .NamePascal }} != nil {
+		{{ .UpdateAssignExpr }}
+	}
+{{- end }}
+
+	v := validator.New()
+	if data.Validate{{ .SingularPascal }}(v, {{ .SingularCamel }}); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	err = app.models.{{ .PluralPascal }}.Update({{ .SingularCamel }})
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrEditConflict):
+			app.editConflictResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"{{ .Singular }}": {{ .SingularCamel }}}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+func (app *application) delete{{ .SingularPascal }}Handler(w http.ResponseWriter, r *http.Request) {
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	err = app.models.{{ .PluralPascal }}.Delete(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"message": "{{ .Singular }} successfully deleted"}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}

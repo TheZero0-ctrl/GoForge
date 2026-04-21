@@ -50,6 +50,23 @@ Alias form is supported:
 
 Common Rails-style names like `create_<table>`, `add_<column>_to_<table>`, and `remove_<column>_from_<table>` generate starter SQL; custom names fall back to empty files.
 
+For `create_<table>` migrations, GoForge includes implicit `created_at` and `version` columns by default.
+
+### `goforge generate resource <name> <field:type>...`
+
+Generates CRUD resource files and wiring in an existing GoForge app, plus a timestamped `create_<resources>` migration pair:
+
+- `internal/data/<resources>.go`
+- `cmd/api/<resources>.go`
+- updates `cmd/api/routes.go`
+- updates `internal/data/models.go`
+- `migrations/<timestamp>_create_<resources>.up.sql`
+- `migrations/<timestamp>_create_<resources>.down.sql`
+
+Alias form is supported:
+
+- `goforge g resource <name> <field:type>...`
+
 
 Global flags available across commands:
 
@@ -61,7 +78,6 @@ Global flags available across commands:
 
 Planned next steps include:
 
-- `goforge generate resource <name> <field:type>...`
 - `goforge generate scaffold <name> <field:type>...`
 - concrete `destroy` subcommands that reverse generated artifacts
 

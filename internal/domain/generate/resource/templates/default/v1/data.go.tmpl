@@ -1,0 +1,187 @@
+package data
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"time"
+
+{{- if .HasStringArray }}
+	"github.com/lib/pq"
+{{- end }}
+
+	"{{ .ModulePath }}/internal/validator"
+)
+
+type {{ .SingularPascal }} struct {
+	ID        int64     `json:"id"`
+	CreatedAt time.Time `json:"-"`
+{{- range .Fields }}
+	{{ .NamePascal }} {{ .DataGoType }} `json:"{{ .NameSnake }},omitempty"`
+{{- end }}
+	Version int32 `json:"version"`
+}
+
+func Validate{{ .SingularPascal }}(v *validator.Validator, {{ .SingularCamel }} *{{ .SingularPascal }}) {
+{{- range .Fields }}
+{{- if .IsString }}
+	v.Check({{ $.SingularCamel }}.{{ .NamePascal }} != "", "{{ .NameSnake }}", "must be provided")
+	v.Check(len({{ $.SingularCamel }}.{{ .NamePascal }}) <= 500, "{{ .NameSnake }}", "must not be more than 500 bytes long")
+{{- end }}
+{{- if .IsNumeric }}
+	v.Check({{ $.SingularCamel }}.{{ .NamePascal }} != 0, "{{ .NameSnake }}", "must be provided")
+{{- end }}
+{{- if .IsTime }}
+	v.Check(!{{ $.SingularCamel }}.{{ .NamePascal }}.IsZero(), "{{ .NameSnake }}", "must be provided")
+{{- end }}
+{{- if .IsStringArray }}
+	v.Check({{ $.SingularCamel }}.{{ .NamePascal }} != nil, "{{ .NameSnake }}", "must be provided")
+	v.Check(len({{ $.SingularCamel }}.{{ .NamePascal }}) >= 1, "{{ .NameSnake }}", "must contain at least 1 value")
+	v.Check(len({{ $.SingularCamel }}.{{ .NamePascal }}) <= 10, "{{ .NameSnake }}", "must not contain more than 10 values")
+	v.Check(validator.Unique({{ $.SingularCamel }}.{{ .NamePascal }}), "{{ .NameSnake }}", "must not contain duplicate values")
+{{- end }}
+{{- end }}
+}
+
+type {{ .SingularPascal }}Model struct {
+	DB *sql.DB
+}
+
+func (m {{ .SingularPascal }}Model) Insert({{ .SingularCamel }} *{{ .SingularPascal }}) error {
+	query := `
+		INSERT INTO {{ .Plural }} ({{ .DBColumnsCSV }})
+		VALUES ({{ .InsertValuesCSV }})
+		RETURNING id, created_at, version`
+
+	args := []any{
+		{{ .InsertArgsCSV }},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	return m.DB.QueryRowContext(ctx, query, args...).Scan(&{{ .SingularCamel }}.ID, &{{ .SingularCamel }}.CreatedAt, &{{ .SingularCamel }}.Version)
+}
+
+func (m {{ .SingularPascal }}Model) Get(id int64) (*{{ .SingularPascal }}, error) {
+	if id < 1 {
+		return nil, ErrRecordNotFound
+	}
+
+	query := `
+		SELECT id, created_at, version, {{ .DBColumnsCSV }}
+		FROM {{ .Plural }}
+		WHERE id = $1`
+
+	var {{ .SingularCamel }} {{ .SingularPascal }}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, id).Scan(
+		{{ .GetScanArgsCSV }},
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &{{ .SingularCamel }}, nil
+}
+
+func (m {{ .SingularPascal }}Model) GetAll() ([]*{{ .SingularPascal }}, error) {
+	query := `
+		SELECT id, created_at, version, {{ .DBColumnsCSV }}
+		FROM {{ .Plural }}
+		ORDER BY id`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	{{ .PluralLowerCamel }} := make([]*{{ .SingularPascal }}, 0)
+
+	for rows.Next() {
+		var {{ .SingularCamel }} {{ .SingularPascal }}
+
+		err := rows.Scan(
+			{{ .GetScanArgsCSV }},
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		{{ .PluralLowerCamel }} = append({{ .PluralLowerCamel }}, &{{ .SingularCamel }})
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return {{ .PluralLowerCamel }}, nil
+}
+
+func (m {{ .SingularPascal }}Model) Update({{ .SingularCamel }} *{{ .SingularPascal }}) error {
+	query := `
+		UPDATE {{ .Plural }}
+		SET {{ .UpdateSetSQL }}, version = version + 1
+		WHERE id = ${{ len .Fields | add 1 }} AND version = ${{ len .Fields | add 2 }}
+		RETURNING version`
+
+	args := []any{
+		{{ .UpdateArgsCSV }},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&{{ .SingularCamel }}.Version)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ErrEditConflict
+		default:
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m {{ .SingularPascal }}Model) Delete(id int64) error {
+	if id < 1 {
+		return ErrRecordNotFound
+	}
+
+	query := `
+		DELETE FROM {{ .Plural }}
+		WHERE id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	result, err := m.DB.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+
+	return nil
+}

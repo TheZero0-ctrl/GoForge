@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -41,6 +43,40 @@ func staticMigrateCommand() command.Command {
 					plan.MigrateParamSourceURL:   "file:///tmp/migrations",
 					plan.MigrateParamDatabaseURL: "postgres://localhost:5432/demo?sslmode=disable",
 				},
+			}},
+		}, nil
+	}
+
+	return command.NewStatic(spec, nil, planner)
+}
+
+func staticUpdateFileCommand(path string, data []byte) command.Command {
+	spec := command.Spec{ID: "test:update", Use: "test:update", Short: "update"}
+	planner := func(context.Context, command.Input) (plan.Plan, error) {
+		return plan.Plan{
+			CommandID:   "test:update",
+			Description: "update file",
+			Ops: []plan.Operation{{
+				Type: plan.OpUpdateFile,
+				Path: path,
+				Data: data,
+			}},
+		}, nil
+	}
+
+	return command.NewStatic(spec, nil, planner)
+}
+
+func staticEnsureNotExistsCommand(path string) command.Command {
+	spec := command.Spec{ID: "test:ensure-not-exists", Use: "test:ensure-not-exists", Short: "ensure not exists"}
+	planner := func(context.Context, command.Input) (plan.Plan, error) {
+		return plan.Plan{
+			CommandID:   spec.ID,
+			Description: "ensure path absent",
+			Ops: []plan.Operation{{
+				Type:    plan.OpEnsureNotExists,
+				Path:    path,
+				Message: "conflict: path already exists",
 			}},
 		}, nil
 	}
@@ -151,5 +187,94 @@ func TestExecutorMigrateDirtyErrorIncludesRecoveryHint(t *testing.T) {
 
 	if !foundHint {
 		t.Fatalf("expected dirty recovery hint, got %+v", result.Entries)
+	}
+}
+
+func TestExecutorUpdateFileWritesWithoutForce(t *testing.T) {
+	workspace := t.TempDir()
+	target := filepath.Join(workspace, "sample.txt")
+	if err := os.WriteFile(target, []byte("old"), 0o644); err != nil {
+		t.Fatalf("seed file: %v", err)
+	}
+
+	reg := command.NewRegistry()
+	if err := reg.Register(staticUpdateFileCommand(target, []byte("new"))); err != nil {
+		t.Fatalf("register command: %v", err)
+	}
+
+	exec := NewExecutor(reg, infrafs.NewOSFS(), proc.NewOSRunner(), fakeMigrateRunner{})
+	result := exec.Execute(context.Background(), command.Input{CommandID: "test:update"})
+	if result.Code != ExitOK {
+		t.Fatalf("expected exit ok, got %d", result.Code)
+	}
+
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatalf("read file: %v", err)
+	}
+	if string(data) != "new" {
+		t.Fatalf("expected updated file content, got %q", string(data))
+	}
+}
+
+func TestExecutorUpdateFileSkipDoesNotModifyFile(t *testing.T) {
+	workspace := t.TempDir()
+	target := filepath.Join(workspace, "sample.txt")
+	if err := os.WriteFile(target, []byte("old"), 0o644); err != nil {
+		t.Fatalf("seed file: %v", err)
+	}
+
+	reg := command.NewRegistry()
+	if err := reg.Register(staticUpdateFileCommand(target, []byte("new"))); err != nil {
+		t.Fatalf("register command: %v", err)
+	}
+
+	exec := NewExecutor(reg, infrafs.NewOSFS(), proc.NewOSRunner(), fakeMigrateRunner{})
+	result := exec.Execute(context.Background(), command.Input{CommandID: "test:update", Flags: command.Flags{Skip: true}})
+	if result.Code != ExitOK {
+		t.Fatalf("expected exit ok, got %d", result.Code)
+	}
+
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatalf("read file: %v", err)
+	}
+	if string(data) != "old" {
+		t.Fatalf("expected skipped file content, got %q", string(data))
+	}
+}
+
+func TestExecutorUpdateFileMissingTargetReturnsConflict(t *testing.T) {
+	workspace := t.TempDir()
+	target := filepath.Join(workspace, "missing.txt")
+
+	reg := command.NewRegistry()
+	if err := reg.Register(staticUpdateFileCommand(target, []byte("new"))); err != nil {
+		t.Fatalf("register command: %v", err)
+	}
+
+	exec := NewExecutor(reg, infrafs.NewOSFS(), proc.NewOSRunner(), fakeMigrateRunner{})
+	result := exec.Execute(context.Background(), command.Input{CommandID: "test:update"})
+	if result.Code != ExitConflict {
+		t.Fatalf("expected exit conflict, got %d", result.Code)
+	}
+}
+
+func TestExecutorEnsureNotExistsReturnsConflictWhenPathExists(t *testing.T) {
+	workspace := t.TempDir()
+	target := filepath.Join(workspace, "sample.txt")
+	if err := os.WriteFile(target, []byte("data"), 0o644); err != nil {
+		t.Fatalf("seed file: %v", err)
+	}
+
+	reg := command.NewRegistry()
+	if err := reg.Register(staticEnsureNotExistsCommand(target)); err != nil {
+		t.Fatalf("register command: %v", err)
+	}
+
+	exec := NewExecutor(reg, infrafs.NewOSFS(), proc.NewOSRunner(), fakeMigrateRunner{})
+	result := exec.Execute(context.Background(), command.Input{CommandID: "test:ensure-not-exists"})
+	if result.Code != ExitConflict {
+		t.Fatalf("expected exit conflict, got %d", result.Code)
 	}
 }

@@ -14,6 +14,7 @@ func NewDefaultRegistry() (*command.Registry, error) {
 		command.NewNewCommand(),
 		command.NewGenerateCommand(),
 		command.NewGenerateMigrationCommand(),
+		command.NewGenerateResourceCommand(),
 		command.NewDestroyCommand(),
 		command.NewDBCreateCommand(),
 		command.NewDBDropCommand(),

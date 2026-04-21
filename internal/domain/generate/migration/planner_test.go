@@ -92,6 +92,14 @@ func TestPlanCreatesMigrationPairWithSharedTimestamp(t *testing.T) {
 		t.Fatalf("expected create table scaffold in up migration, got %q", string(up.Data))
 	}
 
+	if !strings.Contains(string(up.Data), "\"created_at\" timestamp with time zone NOT NULL DEFAULT now()") {
+		t.Fatalf("expected created_at scaffold in up migration, got %q", string(up.Data))
+	}
+
+	if !strings.Contains(string(up.Data), "\"version\" integer NOT NULL DEFAULT 1") {
+		t.Fatalf("expected version scaffold in up migration, got %q", string(up.Data))
+	}
+
 	if !strings.Contains(string(down.Data), "DROP TABLE IF EXISTS \"users\"") {
 		t.Fatalf("expected drop table scaffold in down migration, got %q", string(down.Data))
 	}

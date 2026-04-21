@@ -54,6 +54,8 @@ func TestGenerateMigrationCreatePatternWritesScaffoldedSQL(t *testing.T) {
 	}
 
 	e2e.AssertContains(t, string(upData), "CREATE TABLE IF NOT EXISTS \"users\"")
+	e2e.AssertContains(t, string(upData), "\"created_at\" timestamp with time zone NOT NULL DEFAULT now()")
+	e2e.AssertContains(t, string(upData), "\"version\" integer NOT NULL DEFAULT 1")
 	e2e.AssertContains(t, string(upData), "\"name\" text")
 	e2e.AssertContains(t, string(downData), "DROP TABLE IF EXISTS \"users\"")
 }

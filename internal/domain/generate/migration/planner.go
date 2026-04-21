@@ -125,7 +125,7 @@ func parseFields(tokens []string) (map[string]fieldSpec, error) {
 
 		sqlType := toSQLType(strings.TrimSpace(parts[1]))
 		if sqlType == "" {
-			return nil, fmt.Errorf("unsupported field type %q (supported: string, int, int64, bool, float64, time, string[], runtime)", strings.TrimSpace(parts[1]))
+			return nil, fmt.Errorf("unsupported field type %q (supported: string, int, int64, bool, float64, time, string[])", strings.TrimSpace(parts[1]))
 		}
 
 		fields[name] = fieldSpec{name: name, sqlType: sqlType}
@@ -149,6 +149,8 @@ func renderMigration(pattern parsedPattern, fields map[string]fieldSpec) ([]byte
 
 func renderCreateTable(table string, fields map[string]fieldSpec) ([]byte, []byte) {
 	columns := []string{fmt.Sprintf("%s bigserial PRIMARY KEY", quoteIdent("id"))}
+	columns = append(columns, fmt.Sprintf("%s timestamp with time zone NOT NULL DEFAULT now()", quoteIdent("created_at")))
+	columns = append(columns, fmt.Sprintf("%s integer NOT NULL DEFAULT 1", quoteIdent("version")))
 
 	names := sortedFieldNames(fields)
 	for _, name := range names {
@@ -216,8 +218,6 @@ func toSQLType(fieldType string) string {
 		return "timestamp with time zone"
 	case "string[]":
 		return "text[]"
-	case "runtime":
-		return "integer"
 	default:
 		return ""
 	}

@@ -5,15 +5,17 @@ import "os"
 type OperationType string
 
 const (
-	OpNote           OperationType = "note"
-	OpEnsureEmptyDir OperationType = "ensure_empty_dir"
-	OpEnsureExists   OperationType = "ensure_exists"
-	OpMkdir          OperationType = "mkdir"
-	OpWriteFile      OperationType = "write_file"
-	OpRun            OperationType = "run"
-	OpMigrateUp      OperationType = "migrate_up"
-	OpMigrateDown    OperationType = "migrate_down"
-	OpMigrateForce   OperationType = "migrate_force"
+	OpNote            OperationType = "note"
+	OpEnsureEmptyDir  OperationType = "ensure_empty_dir"
+	OpEnsureExists    OperationType = "ensure_exists"
+	OpEnsureNotExists OperationType = "ensure_not_exists"
+	OpMkdir           OperationType = "mkdir"
+	OpWriteFile       OperationType = "write_file"
+	OpUpdateFile      OperationType = "update_file"
+	OpRun             OperationType = "run"
+	OpMigrateUp       OperationType = "migrate_up"
+	OpMigrateDown     OperationType = "migrate_down"
+	OpMigrateForce    OperationType = "migrate_force"
 )
 
 const (
