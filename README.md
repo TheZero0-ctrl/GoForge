@@ -122,3 +122,7 @@ Install a specific version by setting `VERSION` (for example `v0.1.0`):
 ```bash
 curl -fsSL https://raw.githubusercontent.com/TheZero0-ctrl/GoForge/main/scripts/install_update_linux.sh | VERSION=v0.1.0 bash
 ```
+
+## Architecture
+<img width="1240" height="644" alt="image" src="https://github.com/user-attachments/assets/6d5b4539-2143-46d4-ab49-ce25fcfb44ec" />
+
